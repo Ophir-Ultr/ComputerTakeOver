@@ -2,14 +2,28 @@ from pynput.mouse import Button, Controller as MouseController
 from pynput.keyboard import Controller as KeyboardController
 from PIL import ImageGrab
 import socket
+import io
+def Get_server_ip():
+    return input("Enter the server's ip: ")
 
-def Server_connection():
+def server_connection():
     client = socket.socket()
-    client.connect(("127.0.0.1", 9999))
+    ip = Get_server_ip()
+    while True:
+        try:
+            client.connect((ip, 9999))
+            break
+        except ConnectionError:
+            ip = Get_server_ip()
+
     keyboard = KeyboardController()
     mouse = MouseController()
     while True:
-        data = client.recv(1024).decode()
+        image_bytes = get_image_in_bytes()
+        size = len(image_bytes)
+        client.send(size.to_bytes(4, 'big'))
+        client.send(image_bytes)
+        data = client.recv(1024).decode() 
         for action in data.split("\n"):
             if action:
                 parts = action.split(",")
@@ -25,5 +39,12 @@ def Server_connection():
                 elif parts[0] == "scroll":
                     mouse.scroll(int(parts[3]), int(parts[4]))
 
+def get_image_in_bytes():
+    screen_shot = ImageGrab.grab()
+    buffer = io.BytesIO()
+    screen_shot.save(buffer, 'PNG')
+    image_bytes = buffer.getvalue()
+    return image_bytes
+
 if __name__ == "__main__":
-    Server_connection()
+    server_connection()
