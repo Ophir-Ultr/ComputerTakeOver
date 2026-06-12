@@ -19,6 +19,7 @@ def client_connection():
                 data += conn.recv(65536)
             image = Image.open(io.BytesIO(data))
             image.show()
+            conn.send("\n".encode())
 
     def on_press(key):
         try:
@@ -39,10 +40,12 @@ def client_connection():
         conn.send(f"scroll,{x},{y},{dx},{dy}\n".encode())
 
     def run_keyboard():
-        keyboard.Listener(on_press=on_press).join()
+        with keyboard.Listener(on_press=on_press) as listener:
+            listener.join()
     
     def run_mouse():
-        mouse.Listener(on_move=on_move, on_click=on_click, on_scroll=on_scroll).join()
+        with mouse.Listener(on_move=on_move, on_click=on_click, on_scroll=on_scroll) as listener:
+            listener.join()
     
     screen_thread = threading.Thread(target=receive_screen)
     k_thread = threading.Thread(target=run_keyboard)
