@@ -4,6 +4,9 @@ from PIL import Image
 import socket
 import io
 import threading
+import cv2
+import struct
+import numpy
 def client_connection():
     server = socket.socket()
     server.bind(("0.0.0.0", 9999))
@@ -13,16 +16,23 @@ def client_connection():
     print("Connected from: ", addr)
     def receive_screen():
         while True:
-            size = int.from_bytes(conn.recv(4), 'big')
+            data = b""
+            while len(data) < 4:
+
+                data += conn.recv(4)
+            size = struct.unpack(">L", data)[0]
             data = b""
             while len(data) < size:
-                data += conn.recv(65536)
-            image = Image.open(io.BytesIO(data))
-            image.show()
+                data += conn.recv(size)
+            frame = cv2.imdecode(numpy.frombuffer(data, numpy.uint8), cv2.IMREAD_COLOR)
+            cv2.imshow("screen", frame)
+            cv2.waitKey(1)
             conn.send("\n".encode())
 
+        
+
     def on_press(key):
-        try:
+        try:    
             conn.send(f"key,{key.char}\n".encode())
         except AttributeError:
             pass

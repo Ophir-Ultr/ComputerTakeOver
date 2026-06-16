@@ -1,13 +1,14 @@
 from pynput.mouse import Button, Controller as MouseController
 from pynput.keyboard import Controller as KeyboardController
-from PIL import ImageGrab
+import pyautogui
 import socket
 import io
+import struct
 def Get_server_ip():
     return input("Enter the server's ip: ")
 
 def server_connection():
-    client = socket.socket()
+    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     ip = Get_server_ip()
     while True:
         try:
@@ -21,8 +22,8 @@ def server_connection():
     while True:
         image_bytes = get_image_in_bytes()
         size = len(image_bytes)
-        client.send(size.to_bytes(4, 'big'))
-        client.send(image_bytes)
+        client.sendall(struct.pack(">L", size))
+        client.sendall(image_bytes)
         data = client.recv(1024).decode() 
         for action in data.split("\n"):
             if action:
@@ -40,11 +41,12 @@ def server_connection():
                     mouse.scroll(int(parts[3]), int(parts[4]))
 
 def get_image_in_bytes():
-    screen_shot = ImageGrab.grab()
+    screen_shot = pyautogui.screenshot()
     buffer = io.BytesIO()
-    screen_shot.save(buffer, 'PNG')
+    screen_shot.save(buffer, 'JPEG')
     image_bytes = buffer.getvalue()
     return image_bytes
+    
 
 if __name__ == "__main__":
     server_connection()
