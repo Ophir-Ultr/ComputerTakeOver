@@ -3,6 +3,7 @@ from pynput import keyboard, mouse
 from PIL import Image
 import socket
 import io
+import pyautogui
 import threading
 import cv2
 import struct
@@ -15,6 +16,8 @@ def client_connection():
     conn, addr = server.accept()
     print("Connected from: ", addr)
     def receive_screen():
+        cv2.namedWindow("screen", cv2.WND_PROP_FULLSCREEN)
+        cv2.setWindowProperty("screen", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
         while True:
             data = b""
             while len(data) < 4:
@@ -25,11 +28,12 @@ def client_connection():
             while len(data) < size:
                 data += conn.recv(size)
             frame = cv2.imdecode(numpy.frombuffer(data, numpy.uint8), cv2.IMREAD_COLOR)
-            cv2.imshow("screen", frame)
+            if frame is not None:
+                cv2.imshow("screen", frame)
             cv2.waitKey(1)
             conn.send("\n".encode())
 
-        
+    ctrl_width, ctrl_height = pyautogui.size()    
 
     def on_press(key):
         try:    
@@ -39,12 +43,16 @@ def client_connection():
  
     def on_move(x, y):
         try:
-            conn.send(f"move,{x},{y}\n".encode())
+            rel_x = x / ctrl_width
+            rel_y = y / ctrl_height
+            conn.send(f"move,{rel_x},{rel_y}\n".encode())
         except AttributeError:
             pass
 
     def on_click(x, y, button, pressed):
-        conn.send(f"click,{x},{y},{button},{pressed}\n".encode())
+        rel_x = x / ctrl_width
+        rel_y = y / ctrl_height
+        conn.send(f"click,{rel_x},{rel_y},{button},{pressed}\n".encode())
 
     def on_scroll(x, y, dx, dy):
         conn.send(f"scroll,{x},{y},{dx},{dy}\n".encode())

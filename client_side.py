@@ -19,6 +19,7 @@ def server_connection():
 
     keyboard = KeyboardController()
     mouse = MouseController()
+    target_width, target_height = pyautogui.size()
     while True:
         image_bytes = get_image_in_bytes()
         size = len(image_bytes)
@@ -32,8 +33,13 @@ def server_connection():
                     keyboard.press(parts[1])
                     keyboard.release(parts[1])
                 elif parts[0] == "move":
-                    mouse.position = (int(parts[1]), int(parts[2]))
+                    real_x = float(parts[1]) * target_width
+                    real_y = float(parts[2]) * target_height
+                    mouse.position = (int(real_x), int(real_y))
                 elif parts[0] == "click":
+                    real_x = float(parts[1]) * target_width
+                    real_y = float(parts[2]) * target_height
+                    mouse.position = (int(real_x), int(real_y))
                     button = Button.left if parts[3] == "Button.left" else Button.right
                     mouse.press(button)
                     mouse.release(button)
