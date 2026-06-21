@@ -8,6 +8,7 @@ import threading
 import cv2
 import struct
 import numpy
+import time
 def client_connection():
     server = socket.socket()
     server.bind(("0.0.0.0", 9999))
@@ -15,29 +16,36 @@ def client_connection():
     print("Waiting for connection...")
     conn, addr = server.accept()
     print("Connected from: ", addr)
+    send_lock = threading.Lock()
     def receive_screen():
         cv2.namedWindow("screen", cv2.WND_PROP_FULLSCREEN)
         cv2.setWindowProperty("screen", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
         while True:
-            data = b""
-            while len(data) < 4:
+            try:
+                data = b""
+                while len(data) < 4:
 
-                data += conn.recv(4)
-            size = struct.unpack(">L", data)[0]
-            data = b""
-            while len(data) < size:
-                data += conn.recv(size)
-            frame = cv2.imdecode(numpy.frombuffer(data, numpy.uint8), cv2.IMREAD_COLOR)
-            if frame is not None:
-                cv2.imshow("screen", frame)
-            cv2.waitKey(1)
-            conn.send("\n".encode())
-
+                    data += conn.recv(4)
+                size = struct.unpack(">L", data)[0]
+                data = b""
+                while len(data) < size:
+                    data += conn.recv(size - len(data))
+                frame = cv2.imdecode(numpy.frombuffer(data, numpy.uint8), cv2.IMREAD_COLOR)
+                if frame is not None:
+                    cv2.imshow("screen", frame)
+                cv2.waitKey(1)
+            except Exception as e:
+                print(f"Error in on_move: {e}")
+            
     ctrl_width, ctrl_height = pyautogui.size()    
 
     def on_press(key):
         try:    
-            conn.send(f"key,{key.char}\n".encode())
+            command = (f"key,{key.char}".encode())
+            print("sending:", command)
+            with send_lock:
+                conn.sendall(struct.pack(">L", len(command)))
+                conn.sendall(command)
         except AttributeError:
             pass
  
@@ -45,17 +53,32 @@ def client_connection():
         try:
             rel_x = x / ctrl_width
             rel_y = y / ctrl_height
-            conn.send(f"move,{rel_x},{rel_y}\n".encode())
+            command  = (f"move,{rel_x},{rel_y}".encode())
+            print("sending:", command)
+            with send_lock:
+                conn.sendall(struct.pack(">L", len(command)))
+                conn.sendall(command)
+            time.sleep(0.01)
         except AttributeError:
             pass
+        except Exception as e:
+            print(f"Error in on_move: {e}")
 
     def on_click(x, y, button, pressed):
         rel_x = x / ctrl_width
         rel_y = y / ctrl_height
-        conn.send(f"click,{rel_x},{rel_y},{button},{pressed}\n".encode())
+        command = (f"click,{rel_x},{rel_y},{button},{pressed}".encode())
+        print("sending:", command)
+        with send_lock:
+            conn.sendall(struct.pack(">L", len(command)))
+            conn.sendall(command)
 
     def on_scroll(x, y, dx, dy):
-        conn.send(f"scroll,{x},{y},{dx},{dy}\n".encode())
+        command = (f"scroll,{x},{y},{dx},{dy}".encode())
+        print("sending:", command)
+        with send_lock:
+            conn.sendall(struct.pack(">L", len(command)))
+            conn.sendall(command)
 
     def run_keyboard():
         with keyboard.Listener(on_press=on_press) as listener:
